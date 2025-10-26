@@ -1,0 +1,44 @@
+name: Streak Protector Auto Commit
+
+on:
+  schedule:
+    - cron: "30 18 * * *"  # 12:00 AM IST (IST = UTC+5:30)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  auto-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Get current date index
+        id: date
+        run: |
+          # Day index based on date (cycles over pattern length 9)
+          index=$(( ($(date +%s) / 86400) % 9 ))
+          echo "index=$index" >> $GITHUB_OUTPUT
+
+      - name: Define pattern array
+        id: pattern
+        run: |
+          pattern=(3 4 5 7 3 8 9 1 2)
+          echo "count=${pattern[${{ steps.date.outputs.index }}]}" >> $GITHUB_OUTPUT
+
+      - name: Commit loop
+        run: |
+          for i in $(seq 1 ${{ steps.pattern.outputs.count }}); do
+              COUNT=$(grep -o '[0-9]*' counter.txt)
+              NEW_COUNT=$((COUNT + 1))
+              echo "Commit No: $NEW_COUNT" > counter.txt
+              git config --local user.email "action@github.com"
+              git config --local user.name "GitHub Action Bot"
+              git add counter.txt
+              git commit -m "New Update: $NEW_COUNT" || echo "No changes"
+          done
+
+      - name: Push changes
+        run: git push
