@@ -1,44 +1,54 @@
 name: Streak Protector Auto Commit
 
-on:
-  schedule:
-    - cron: "30 18 * * *"  # 12:00 AM IST (IST = UTC+5:30)
-  workflow_dispatch:
-
 permissions:
   contents: write
+
+on:
+  schedule:
+    # Runs at 00:00 IST every day (18:30 UTC)
+    - cron: "30 18 * * *"
+  workflow_dispatch:
 
 jobs:
   auto-commit:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
-      - name: Get current date index
-        id: date
+      - name: Set up commit identity
         run: |
-          # Day index based on date (cycles over pattern length 9)
-          index=$(( ($(date +%s) / 86400) % 9 ))
-          echo "index=$index" >> $GITHUB_OUTPUT
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
 
-      - name: Define pattern array
-        id: pattern
+      - name: Ensure counter file exists
+        run: |
+          if [ ! -f counter.txt ]; then
+            echo "Commit No: 0" > counter.txt
+          fi
+
+      - name: Calculate number of commits based on pattern
+        id: calc
         run: |
           pattern=(3 4 5 7 3 8 9 1 2)
-          echo "count=${pattern[${{ steps.date.outputs.index }}]}" >> $GITHUB_OUTPUT
+          index=$(( ($(date +%s) / 86400) % 9 ))
+          echo "count=${pattern[index]}" >> $GITHUB_OUTPUT
 
-      - name: Commit loop
+      - name: Perform multiple commits
         run: |
-          for i in $(seq 1 ${{ steps.pattern.outputs.count }}); do
-              COUNT=$(grep -o '[0-9]*' counter.txt)
-              NEW_COUNT=$((COUNT + 1))
-              echo "Commit No: $NEW_COUNT" > counter.txt
-              git config --local user.email "action@github.com"
-              git config --local user.name "GitHub Action Bot"
-              git add counter.txt
-              git commit -m "New Update: $NEW_COUNT" || echo "No changes"
+          COUNT=$(grep -o '[0-9]*' counter.txt)
+          for i in $(seq 1 ${{ steps.calc.outputs.count }}); do
+            COUNT=$((COUNT + 1))
+            echo "Commit No: $COUNT" > counter.txt
+            git add counter.txt
+            git commit -m "New Update: $COUNT"
           done
 
       - name: Push changes
-        run: git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git push https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }} HEAD:main
