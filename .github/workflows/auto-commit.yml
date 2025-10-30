@@ -5,7 +5,7 @@ permissions:
 
 on:
   schedule:
-    # Runs at 06:00 AM IST every day (18:30 UTC)
+    # Runs at 06:00 AM IST every day (00:30 UTC)
     - cron: "30 0 * * *"
   workflow_dispatch:
 
@@ -30,22 +30,13 @@ jobs:
             echo "Commit No: 0" > counter.txt
           fi
 
-      - name: Calculate number of commits based on pattern
-        id: calc
-        run: |
-          pattern=(3 4 5 7 3 8 9 1 2)
-          index=$(( ($(date +%s) / 86400) % 9 ))
-          echo "count=${pattern[index]}" >> $GITHUB_OUTPUT
-
-      - name: Perform multiple commits
+      - name: Increment commit counter
         run: |
           COUNT=$(grep -o '[0-9]*' counter.txt)
-          for i in $(seq 1 ${{ steps.calc.outputs.count }}); do
-            COUNT=$((COUNT + 1))
-            echo "Commit No: $COUNT" > counter.txt
-            git add counter.txt
-            git commit -m "New Update: $COUNT"
-          done
+          COUNT=$((COUNT + 1))
+          echo "Commit No: $COUNT" > counter.txt
+          git add counter.txt
+          git commit -m "New Update: $COUNT"
 
       - name: Push changes
         env:
